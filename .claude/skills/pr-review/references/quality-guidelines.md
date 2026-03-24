@@ -49,6 +49,11 @@ If the skill includes helper scripts in `scripts/`:
 - A `requirements.txt` should be present listing all dependencies if external libraries are needed.
 - Errors should produce clear messages, not raw tracebacks
 
-## 6. README Sync
+## 6. Language
+
+- SKILL.md content and code should be written in English
+- Reference docs are recommended to be in English
+
+## 7. README Sync
 
 When a new skill is added, both `README.md` and `README_zh.md` should be updated with the new skill in the table. Community-submitted skills should set the Source column to `Community`.

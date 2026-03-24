@@ -43,7 +43,8 @@ After automated checks pass, review the PR against quality guidelines:
 3. **File size** — Are reference docs reasonably sized for context window consumption?
 4. **API key handling** — If external APIs are used, are credentials read from environment variables?
 5. **Script quality** — Do scripts have shebang, requirements.txt, and error handling?
-6. **README sync** — Are `README.md` and `README_zh.md` updated for new skills?
+6. **Language** — Are SKILL.md and code written in English?
+7. **README sync** — Are `README.md` and `README_zh.md` updated for new skills?
 
 See [references/quality-guidelines.md](references/quality-guidelines.md) for soft guidelines details.
 
