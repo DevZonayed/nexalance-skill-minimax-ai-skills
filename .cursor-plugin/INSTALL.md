@@ -30,8 +30,10 @@ git clone https://github.com/MiniMax-AI/skills.git "$env:USERPROFILE\.cursor\min
 Set Cursor's skills path to:
 
 ```text
-%USERPROFILE%\.cursor\minimax-skills\skills\
+C:\Users\YOUR_USERNAME\.cursor\minimax-skills\skills\
 ```
+
+Replace `YOUR_USERNAME` with your Windows account name.
 
 After saving the path, restart Cursor or reload the window so it rescans local skills.
 
