@@ -28,7 +28,56 @@ Analyze images using the MiniMax `MiniMax_understand_image` MCP tool available i
 ## Prerequisites
 
 - MiniMax Token Plan subscription with valid `MINIMAX_API_KEY`
-- MiniMax MCP configured in OpenCode (`MiniMax_understand_image` tool available)
+- MiniMax MCP configured (`MiniMax_understand_image` tool available)
+
+### If MCP tool is not configured
+
+**Step 1:** The agent should fetch setup instructions from:
+**https://platform.minimaxi.com/docs/token-plan/mcp-guide**
+
+**Step 2:** Detect the user's environment (OpenCode, Cursor, Claude Code, etc.) and output the exact commands needed. Common examples:
+
+**OpenCode** — add to `~/.config/opencode/opencode.json` or `package.json`:
+```json
+{
+  "mcp": {
+    "MiniMax": {
+      "type": "local",
+      "command": ["uvx", "minimax-coding-plan-mcp", "-y"],
+      "environment": {
+        "MINIMAX_API_KEY": "YOUR_TOKEN_PLAN_KEY",
+        "MINIMAX_API_HOST": "https://api.minimaxi.com"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+**Claude Code**:
+```bash
+claude mcp add -s user MiniMax --env MINIMAX_API_KEY=your-key --env MINIMAX_API_HOST=https://api.minimaxi.com -- uvx minimax-coding-plan-mcp -y
+```
+
+**Cursor** — add to MCP settings:
+```json
+{
+  "mcpServers": {
+    "MiniMax": {
+      "command": "uvx",
+      "args": ["minimax-coding-plan-mcp"],
+      "env": {
+        "MINIMAX_API_KEY": "your-key",
+        "MINIMAX_API_HOST": "https://api.minimaxi.com"
+      }
+    }
+  }
+}
+```
+
+**Step 3:** After configuration, tell the user to restart their app and verify with `/mcp`.
+
+**Important:** If the user does not have a MiniMax Token Plan subscription, inform them that the `understand_image` tool requires one — it cannot be used with free or other tier API keys.
 
 ## Analysis Modes
 
