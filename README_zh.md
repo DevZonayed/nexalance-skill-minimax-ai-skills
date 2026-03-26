@@ -15,6 +15,7 @@
 | `android-native-dev` | 基于 Material Design 3 的 Android 原生应用开发。Kotlin / Jetpack Compose、自适应布局、Gradle 配置、无障碍（WCAG）、构建问题排查、性能优化与动效系统。 | Official |
 | `ios-application-dev` | iOS 应用开发指南，涵盖 UIKit、SnapKit 和 SwiftUI。触控目标、安全区域、导航模式、Dynamic Type、深色模式、无障碍、集合视图，符合 Apple HIG 规范。 | Official |
 | `flutter-dev` | Flutter 跨平台开发指南，涵盖 Widget 模式、Riverpod/Bloc 状态管理、GoRouter 导航、性能优化与测试策略。 | Official |
+| `react-native-dev` | React Native 与 Expo 开发指南，涵盖组件、样式、动画、导航、状态管理、表单、网络请求、性能优化、测试、原生能力及工程化（项目结构、部署、SDK 升级、CI/CD）。 | Official |
 | `shader-dev` | 全面的 GLSL 着色器技术，用于创建惊艳的视觉效果 — 光线行进、SDF 建模、流体模拟、粒子系统、程序化生成、光照、后处理等。兼容 ShaderToy。 | Official |
 | `gif-sticker-maker` | 将照片（人物、宠物、物品、Logo）转换为 4 张带字幕的动画 GIF 贴纸。Funko Pop / Pop Mart 盲盒风格，基于 MiniMax 图片与视频生成 API。 | Official |
 | `minimax-pdf` | 基于 token 化设计系统生成、填写和重排 PDF 文档。支持三种模式：CREATE（从零生成，15 种封面风格）、FILL（填写现有表单字段）、REFORMAT（将已有文档重排为新设计）。排版与配色由文档类型自动推导，输出即可打印。 | Official |
