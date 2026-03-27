@@ -40,6 +40,7 @@ git clone https://github.com/MiniMax-AI/skills.git ~/.cursor/minimax-skills
 ```
 
 在 Cursor 设置中将 skills 路径指向 `~/.cursor/minimax-skills/skills/`。
+Windows 安装与校验方式见 [`.cursor-plugin/INSTALL.md`](.cursor-plugin/INSTALL.md)。
 
 ### Codex
 
@@ -62,6 +63,17 @@ ln -s ~/.minimax-skills/skills/* ~/.config/opencode/skills/
 ```
 
 重启 OpenCode 以发现技能。详见 [`.opencode/INSTALL.md`](.opencode/INSTALL.md)。
+
+### VS Code
+
+当前仓库还没有提供独立的 VS Code 扩展。
+
+如果你使用 VS Code，推荐方式是在集成终端里运行已支持的 CLI 工具：
+- Codex
+- Claude Code
+- OpenCode
+
+如果你希望直接使用本仓库的本地 skills 配置，建议使用 Cursor，并参考 [`.cursor-plugin/INSTALL.md`](.cursor-plugin/INSTALL.md)。
 
 ## 贡献
 

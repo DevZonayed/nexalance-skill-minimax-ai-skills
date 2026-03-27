@@ -40,6 +40,7 @@ git clone https://github.com/MiniMax-AI/skills.git ~/.cursor/minimax-skills
 ```
 
 Add to your Cursor settings — point the skills path to `~/.cursor/minimax-skills/skills/`.
+For Windows setup and verification, see [`.cursor-plugin/INSTALL.md`](.cursor-plugin/INSTALL.md).
 
 ### Codex
 
@@ -62,6 +63,17 @@ ln -s ~/.minimax-skills/skills/* ~/.config/opencode/skills/
 ```
 
 Restart OpenCode to discover the skills. See [`.opencode/INSTALL.md`](.opencode/INSTALL.md) for details.
+
+### VS Code
+
+This repository does not currently ship a standalone VS Code extension.
+
+If you use VS Code, the supported approach is to run one of the supported CLI tools inside the integrated terminal:
+- Codex
+- Claude Code
+- OpenCode
+
+If you want native local-skills configuration from this repo, use Cursor and follow [`.cursor-plugin/INSTALL.md`](.cursor-plugin/INSTALL.md).
 
 ## Contributing
 
