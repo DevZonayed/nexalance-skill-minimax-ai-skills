@@ -7,7 +7,7 @@
 #   bash scripts/image/generate_image.sh --prompt "Mountain landscape" --aspect-ratio 16:9 -n 3 -o minimax-output/landscape.png
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # ============================================================================
@@ -27,7 +27,7 @@ load_env() {
           case "$val" in \"*\") val="${val:1:${#val}-2}" ;; \'*\') val="${val:1:${#val}-2}" ;; esac
         fi
         [[ -z "${!key:-}" ]] && export "$key=$val"
-      done < "$env_file"
+      done < "$env_file" || true
     fi
   done
 }
@@ -44,7 +44,7 @@ image_to_data_url() {
   local mime
   mime="$(file -b --mime-type "$path" 2>/dev/null)" || mime="image/jpeg"
   local b64
-  b64="$(base64 -w 0 < "$path")"
+  b64="$(base64 < "$path")"
   echo "data:${mime};base64,${b64}"
 }
 
@@ -111,16 +111,13 @@ build_payload() {
   if [[ -n "$ref_image" ]]; then
     local img_url
     img_url="$(resolve_image "$ref_image")"
-    # Create temp files and set traps separately to avoid set -u issues
-    local ref_tmp; ref_tmp="$(mktemp)"
-    trap "rm -f '$base_tmp' '$ref_tmp'" EXIT INT TERM HUP
-    local url_tmp; url_tmp="$(mktemp)"; trap "rm -f '$base_tmp' '$ref_tmp' '$url_tmp'" EXIT INT TERM HUP
-    # Write URL to temp file to avoid long-argument issues, then build JSON
-    echo -n "$img_url" > "$url_tmp"
-    # Use jq -s to collect all lines (handles base64 with embedded newlines), take first element
-    jq -Rs 'split("\n")[0] | {type: "character", image_file: .}' "$url_tmp" > "$ref_tmp"
-    local tmp2; tmp2="$(mktemp)"; trap "rm -f '$base_tmp' '$ref_tmp' '$url_tmp' '$tmp2'" EXIT INT TERM HUP
-    jq --slurpfile ref "$ref_tmp" '. + {subject_reference: $ref}' "$base_tmp" > "$tmp2"
+    # Write the subject_reference array to a temp file, then merge using --from-file
+    local ref_tmp; ref_tmp="$(mktemp)"; trap "rm -f '$base_tmp' '$ref_tmp'" EXIT INT TERM HUP
+    jq -n --arg img "$img_url" \
+      '[{type: "character", image_file: $img}]' \
+      > "$ref_tmp"
+    local tmp2; tmp2="$(mktemp)"; trap "rm -f '$base_tmp' '$ref_tmp' '$tmp2'" EXIT INT TERM HUP
+    jq --from-file "$ref_tmp" '. + {subject_reference: .subject_reference}' "$base_tmp" > "$tmp2"
     mv "$tmp2" "$base_tmp"
   fi
 
@@ -231,18 +228,13 @@ USAGE
   echo "Model: $model"
   echo "Generating $n image(s)..."
 
-  # Write payload to temp file to avoid command-line length limits
-  local payload_tmp; payload_tmp="$(mktemp)"
-  trap "rm -f '$payload_tmp'" EXIT INT TERM HUP
-  echo -n "$payload" > "$payload_tmp"
-
   local raw_output http_code response
   raw_output="$(curl -s -w "\n%{http_code}" \
     -X POST "$api_url" \
     -H "Authorization: Bearer ${MINIMAX_API_KEY}" \
     -H "Content-Type: application/json" \
     --max-time 120 \
-    -d "@$payload_tmp" 2>/dev/null)" || {
+    -d "$payload" 2>/dev/null)" || {
     echo "Error: curl request failed" >&2
     exit 1
   }
@@ -262,7 +254,6 @@ USAGE
     local status_msg
     status_msg="$(echo "$response" | jq -r '.base_resp.status_msg // "Unknown error"')"
     echo "Error: API error (code $status_code): $status_msg" >&2
-    echo "Full response: $response" >&2
     exit 1
   fi
 

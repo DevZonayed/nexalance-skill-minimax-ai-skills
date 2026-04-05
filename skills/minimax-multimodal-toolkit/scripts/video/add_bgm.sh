@@ -7,7 +7,7 @@
 #   bash scripts/video/add_bgm.sh --video input.mp4 --audio bgm.mp3 --replace-audio -o output.mp4
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 MUSIC_API_URL="${MINIMAX_API_HOST:-https://api.minimaxi.com}/v1/music_generation"
@@ -29,7 +29,7 @@ load_env() {
           case "$val" in \"*\") val="${val:1:${#val}-2}" ;; \'*\') val="${val:1:${#val}-2}" ;; esac
         fi
         [[ -z "${!key:-}" ]] && export "$key=$val"
-      done < "$env_file"
+      done < "$env_file" || true
     fi
   done
 }

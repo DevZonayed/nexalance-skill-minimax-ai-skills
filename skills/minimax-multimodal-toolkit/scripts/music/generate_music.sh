@@ -7,7 +7,7 @@
 #   bash scripts/music/generate_music.sh --lyrics "[verse]\nStars" --genre pop --mood happy -o output/happy.mp3 --download
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # ============================================================================
@@ -31,7 +31,7 @@ load_env() {
           esac
         fi
         [[ -z "${!key:-}" ]] && export "$key=$val"
-      done < "$env_file"
+      done < "$env_file" || true
       return 0
     fi
   done
