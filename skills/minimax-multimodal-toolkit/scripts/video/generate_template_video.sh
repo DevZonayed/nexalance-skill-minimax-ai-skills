@@ -9,7 +9,7 @@
 #     -o output/template_video.mp4
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 API_BASE="${MINIMAX_API_HOST:-https://api.minimaxi.com}/v1"
@@ -38,7 +38,7 @@ load_env() {
           case "$val" in \"*\") val="${val:1:${#val}-2}" ;; \'*\') val="${val:1:${#val}-2}" ;; esac
         fi
         [[ -z "${!key:-}" ]] && export "$key=$val"
-      done < "$env_file"
+      done < "$env_file" || true
     fi
   done
 }

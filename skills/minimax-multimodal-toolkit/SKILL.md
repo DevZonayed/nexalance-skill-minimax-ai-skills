@@ -18,7 +18,71 @@ metadata:
 
 Generate voice, music, video, and image content via MiniMax APIs — the unified entry for **MiniMax multimodal** use cases (audio + music + video + image). Includes voice cloning & voice design for custom voices, image generation with character reference, and FFmpeg-based media tools for audio/video format conversion, concatenation, trimming, and extraction.
 
-## Output Directory
+## Setup & Configuration
+
+### Prerequisites
+
+```bash
+brew install ffmpeg jq              # macOS
+sudo apt install ffmpeg jq          # Linux (Debian/Ubuntu)
+bash scripts/check_environment.sh   # verify environment
+```
+
+No Python or pip required — all scripts are pure bash using `curl`, `ffmpeg`, `jq`, and `xxd`.
+
+> **Note:** `ffmpeg` is required for TTS voice bubble conversion (`.mp3` → `.opus`). Without it, TTS audio sends as a file attachment instead of a native voice bubble.
+
+### API Configuration
+
+MiniMax provides two service endpoints for different regions:
+
+| Region | API Host |
+|--------|----------|
+| China Mainland（中国大陆） | `https://api.minimaxi.com` |
+| Global（全球） | `https://api.minimax.io` |
+
+**In OpenClaw** — create a `.env` file in the skill directory (scripts load it automatically, no shell export needed):
+
+```
+~/.openclaw/workspace/skills/minimax-multimodal-toolkit/.env
+```
+
+```bash
+MINIMAX_API_KEY=sk-cp-...
+MINIMAX_API_HOST=https://api.minimaxi.com
+```
+
+Or configure via `openclaw.json`:
+
+```json
+"skills": {
+  "entries": {
+    "minimax-multimodal-toolkit": {
+      "env": {
+        "MINIMAX_API_HOST": "https://api.minimaxi.com",
+        "MINIMAX_API_KEY": "sk-cp-..."
+      }
+    }
+  }
+}
+```
+
+**In other environments** — set environment variables before running any script:
+
+```bash
+export MINIMAX_API_HOST="https://api.minimaxi.com"
+export MINIMAX_API_KEY="your-key-here"
+```
+
+Keys start with `sk-api-` or `sk-cp-`, obtainable from https://platform.minimaxi.com (China) or https://platform.minimax.io (Global)
+
+**IMPORTANT — When credentials are missing:**
+Before running any script, check that both `MINIMAX_API_HOST` and `MINIMAX_API_KEY` are set.
+If either is missing: ask the user for their region and API key, then help them configure using one of the methods above.
+
+## Output & Sending
+
+### Output Directory
 
 **All generated files MUST be saved to `minimax-output/` under the AGENT'S current working directory (NOT the skill directory).** Every script call MUST include an explicit `--output` / `-o` argument pointing to this location. Never omit the output argument or rely on script defaults.
 
@@ -28,53 +92,29 @@ Generate voice, music, video, and image content via MiniMax APIs — the unified
 3. **Never** `cd` into the skill directory to run scripts — run from the agent's working directory using the full script path
 4. Intermediate/temp files (segment audio, video segments, extracted frames) are automatically placed in `minimax-output/tmp/`. They can be cleaned up when no longer needed: `rm -rf minimax-output/tmp`
 
-## Prerequisites
+### Sending to Feishu (Native Bubbles)
+
+**After generating any media file, send it as a native Feishu bubble using the `message` tool:**
 
 ```bash
-brew install ffmpeg jq              # macOS (or apt install ffmpeg jq on Linux)
-bash scripts/check_environment.sh
+message action=send media=<file-path>
 ```
 
-No Python or pip required — all scripts are pure bash using `curl`, `ffmpeg`, `jq`, and `xxd`.
+**Do NOT use `[[reply_to_current]]` for media — always use the message tool with the `media` parameter.**
 
-### API Host Configuration
+| Media type | Format | Notes |
+|------------|--------|-------|
+| Images | PNG/JPG/WebP | Send directly |
+| Video | `.mp4` | Send directly |
+| Music | `.mp3` | Send directly |
+| TTS / Voice | **Must convert to `.opus` first** | MP3 sends as a file attachment, NOT a voice bubble |
 
-MiniMax provides two service endpoints for different regions. Set `MINIMAX_API_HOST` before running any script:
-
-| Region | Platform URL | API Host Value |
-|--------|-------------|----------------|
-| China Mainland（中国大陆） | https://platform.minimaxi.com | `https://api.minimaxi.com` |
-| Global（全球） | https://platform.minimax.io | `https://api.minimax.io` |
+**TTS audio — required conversion for native voice bubble:**
 
 ```bash
-# China Mainland
-export MINIMAX_API_HOST="https://api.minimaxi.com"
-
-# or Global
-export MINIMAX_API_HOST="https://api.minimax.io"
+ffmpeg -i output.mp3 -c:a libopus -b:a 128k -y output.opus
+message action=send media=output.opus
 ```
-
-**IMPORTANT — When API Host is missing:**
-Before running any script, check if `MINIMAX_API_HOST` is set in the environment. If it is NOT configured:
-1. Ask the user which service endpoint their MiniMax account uses:
-   - **China Mainland** → `https://api.minimaxi.com`
-   - **Global** → `https://api.minimax.io`
-2. Instruct and help user to set it via `export MINIMAX_API_HOST="https://api.minimaxi.com"` (or the global variant) in their terminal or add it to their shell profile (`~/.zshrc` / `~/.bashrc`) for persistence
-
-### API Key Configuration
-
-Set the `MINIMAX_API_KEY` environment variable before running any script:
-
-```bash
-export MINIMAX_API_KEY="your-api-key-here"
-```
-
-The key starts with `sk-api-` or `sk-cp-`, obtainable from https://platform.minimaxi.com (China) or https://platform.minimax.io (Global)
-
-**IMPORTANT — When API Key is missing:**
-Before running any script, check if `MINIMAX_API_KEY` is set in the environment. If it is NOT configured:
-1. Ask the user to provide their MiniMax API key
-2. Instruct and help user to set it via `export MINIMAX_API_KEY="sk-..."` in their terminal or add it to their shell profile (`~/.zshrc` / `~/.bashrc`) for persistence
 
 ## Plan Limits & Quotas
 
@@ -124,6 +164,28 @@ Before running any script, check if `MINIMAX_API_KEY` is set in the environment.
 
 Entry point: `scripts/tts/generate_voice.sh`
 
+### 🎙 Voice Selection (First Use)
+
+On first TTS call, ask the user to pick a voice. Provide these options:
+
+**Recommended:**
+- `chunzhen_xuedi` — **纯真学弟**（乖巧、干净，适合日常）
+
+**Other options:**
+| voice_id | Name | Feel |
+|----------|------|------|
+| `female-shaonv` | 少女 | 活泼年轻 |
+| `female-yujie` | 御姐 | 成熟优雅 |
+| `female-tianmei` | 甜美女性 | 温柔柔和 |
+| `male-qn-qingse` | 青涩青年 | 校园青春 |
+| `male-qn-badao` | 霸道青年 | 傲气强势 |
+| `badao_shaoye` | 霸道少爷 | 霸总感 |
+| `junlang_nanyou` | 俊朗男友 | 阳光温暖 |
+
+> Full list in `references/tts-voice-catalog.md`
+
+**How to set:** After user picks, remember their choice and use `-v <voice_id>` in all subsequent TTS calls.
+
 ### IMPORTANT: Single voice vs Multi-segment — Choose the right approach
 
 | User intent | Approach |
@@ -138,11 +200,17 @@ Only use multi-segment `generate` when:
 - The text requires narrator + character dialogue separation
 - The text exceeds **10,000 characters** (API limit per request) — in this case, split into segments with the same voice
 
-### Single-voice generation (DEFAULT)
+### Single-voice generation
 
 ```bash
-bash scripts/tts/generate_voice.sh tts "Hello world" -o minimax-output/hello.mp3
-bash scripts/tts/generate_voice.sh tts "你好世界" -v female-shaonv -o minimax-output/hello_cn.mp3
+# Generate TTS with chosen voice
+bash scripts/tts/generate_voice.sh tts "你想说的话" -v chunzhen_xuedi -o minimax-output/output.mp3
+
+# Convert to .opus (required for native Feishu voice bubble)
+ffmpeg -i minimax-output/output.mp3 -c:a libopus -b:a 128k -y minimax-output/output.opus
+
+# Send as native voice bubble
+message action=send media=minimax-output/output.opus
 ```
 
 ### Multi-segment generation (multi-voice / audiobook / podcast)
@@ -160,6 +228,10 @@ bash scripts/tts/generate_voice.sh tts "你好世界" -v female-shaonv -o minima
 # It generates each segment individually and merges them into one file
 bash scripts/tts/generate_voice.sh generate minimax-output/segments.json \
   -o minimax-output/output.mp3 --crossfade 200
+
+# Step 3: Convert and send
+ffmpeg -i minimax-output/output.mp3 -c:a libopus -b:a 128k -y minimax-output/output.opus
+message action=send media=minimax-output/output.opus
 ```
 
 **Do NOT skip Step 2.** Writing segments.json alone does nothing — you MUST run the `generate` command to actually produce audio.
@@ -259,18 +331,14 @@ bash scripts/music/generate_music.sh \
   --instrumental \
   --prompt "ambient electronic, atmospheric" \
   --output minimax-output/ambient.mp3 --download
+message action=send media=minimax-output/ambient.mp3
 
 # Song with lyrics (when user chooses vocal music)
 bash scripts/music/generate_music.sh \
   --lyrics "[verse]\nHello world\n[chorus]\nLa la la" \
   --prompt "indie folk, melancholic" \
   --output minimax-output/song.mp3 --download
-
-# With style fields
-bash scripts/music/generate_music.sh \
-  --lyrics "[verse]\nLyrics here" \
-  --genre "pop" --mood "upbeat" --tempo "fast" \
-  --output minimax-output/pop_track.mp3 --download
+message action=send media=minimax-output/song.mp3
 ```
 
 ### Music Model
@@ -329,36 +397,42 @@ Do NOT always default to `1:1`. Analyze the user's request and choose the most a
 bash scripts/image/generate_image.sh \
   --prompt "A cat sitting on a rooftop at sunset, cinematic lighting, warm tones, photorealistic" \
   -o minimax-output/cat.png
+message action=send media=minimax-output/cat.png
 
 # Landscape with inferred aspect ratio
 bash scripts/image/generate_image.sh \
   --prompt "Mountain landscape with misty valleys, photorealistic, golden hour" \
   --aspect-ratio 16:9 \
   -o minimax-output/landscape.png
+message action=send media=minimax-output/landscape.png
 
 # Phone wallpaper (portrait 9:16)
 bash scripts/image/generate_image.sh \
   --prompt "Aurora borealis over a snowy forest, vivid colors, magical atmosphere" \
   --aspect-ratio 9:16 \
   -o minimax-output/wallpaper.png
+message action=send media=minimax-output/wallpaper.png
 
 # Multiple variations
 bash scripts/image/generate_image.sh \
   --prompt "Abstract geometric art, vibrant colors" \
   -n 3 \
   -o minimax-output/art.png
+message action=send media=minimax-output/art.png
 
 # With prompt optimizer
 bash scripts/image/generate_image.sh \
   --prompt "A man standing on Venice Beach, 90s documentary style" \
   --aspect-ratio 16:9 --prompt-optimizer \
   -o minimax-output/beach.png
+message action=send media=minimax-output/beach.png
 
 # Custom dimensions (must be multiple of 8)
 bash scripts/image/generate_image.sh \
   --prompt "Product photo of a luxury watch on marble surface" \
   --width 1024 --height 768 \
   -o minimax-output/watch.png
+message action=send media=minimax-output/watch.png
 ```
 
 ### Image-to-Image (Character Reference)
@@ -373,6 +447,7 @@ bash scripts/image/generate_image.sh \
   --ref-image face.jpg \
   --aspect-ratio 16:9 \
   -o minimax-output/girl_library.png
+message action=send media=minimax-output/girl_library.png
 
 # Multiple character variations
 bash scripts/image/generate_image.sh \
@@ -380,6 +455,7 @@ bash scripts/image/generate_image.sh \
   --prompt "A woman in a red dress at a gala event, elegant, cinematic" \
   --ref-image face.jpg -n 3 \
   -o minimax-output/gala.png
+message action=send media=minimax-output/gala.png
 ```
 
 ### Aspect Ratio Reference
@@ -441,6 +517,10 @@ Entry point (long/multi-scene): `scripts/video/generate_long_video.sh`
 - **1080P is NOT supported** on any plan — always use 768P for Hailuo-2.3/2.3-Fast
 - Older models (T2V-01, I2V-01, S2V-01) only support 6s at 720P
 
+> ⚠️ **Duration vs Account Plan:** MiniMax-Hailuo-2.3 supports 6s or 10s, but **some accounts only support 6s**.
+> If you encounter "token plan not support model, MiniMax-Hailuo-2.3-10s-768p" error, switch to `--duration 6`.
+> Always check user's plan limits before attempting 10s video generation.
+
 ### IMPORTANT: Prompt Optimization (MUST follow before generating any video)
 
 Before calling any video generation script, you MUST optimize the user's prompt by reading and applying `references/video-prompt-guide.md`. Never pass the user's raw description directly as `--prompt`.
@@ -469,6 +549,7 @@ bash scripts/video/generate_video.sh \
   --mode t2v \
   --prompt "A golden retriever puppy bounds toward the camera on a sunlit grass path, [跟随] tracking shot, warm golden hour, shallow depth of field, joyful" \
   --output minimax-output/puppy.mp4
+message action=send media=minimax-output/puppy.mp4
 
 # Image-to-video (prompt focuses on MOTION, not image content)
 bash scripts/video/generate_video.sh \
@@ -476,12 +557,14 @@ bash scripts/video/generate_video.sh \
   --prompt "The petals begin to sway gently in the breeze, soft light shifts across the surface, [固定] fixed framing, dreamy pastel tones" \
   --first-frame photo.jpg \
   --output minimax-output/animated.mp4
+message action=send media=minimax-output/animated.mp4
 
 # Start-end frame interpolation (sef mode uses MiniMax-Hailuo-02)
 bash scripts/video/generate_video.sh \
   --mode sef \
   --first-frame start.jpg --last-frame end.jpg \
   --output minimax-output/transition.mp4
+message action=send media=minimax-output/transition.mp4
 
 # Subject reference (face consistency, ref mode uses S2V-01, 6s only)
 bash scripts/video/generate_video.sh \
@@ -490,6 +573,7 @@ bash scripts/video/generate_video.sh \
   --subject-image face.jpg \
   --duration 6 \
   --output minimax-output/person.mp4
+message action=send media=minimax-output/person.mp4
 ```
 
 ### Long-form Video (Multi-scene)
@@ -518,6 +602,7 @@ bash scripts/video/generate_long_video.sh \
     "The astronaut reaches the structure entrance, a massive doorway pulses with blue energy, [推进] slow push in toward the doorway, light reflects off the visor, awe-inspiring epic scale" \
   --music-prompt "cinematic orchestral ambient, slow build, sci-fi atmosphere" \
   --output minimax-output/long_video.mp4
+message action=send media=minimax-output/long_video.mp4
 
 # With custom settings
 bash scripts/video/generate_long_video.sh \
@@ -527,6 +612,7 @@ bash scripts/video/generate_long_video.sh \
   --crossfade 0.5 \
   --music-prompt "calm ambient background music" \
   --output minimax-output/long_video.mp4
+message action=send media=minimax-output/long_video.mp4
 ```
 
 ### Add Background Music
