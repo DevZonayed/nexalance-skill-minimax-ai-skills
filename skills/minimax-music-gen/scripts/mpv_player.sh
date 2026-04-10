@@ -29,7 +29,7 @@ echo -e "  ${GREEN}━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Create temporary cava config
-CAVA_CONFIG=$(mktemp /tmp/cava_config.XXXXXX)
+CAVA_CONFIG=$(mktemp)
 cat > "$CAVA_CONFIG" << 'CAVAEOF'
 [general]
 bars = 0

@@ -10,7 +10,9 @@ import subprocess
 import sys
 import time
 
-SOCKET_PATH = "/tmp/mpv-minimax-ipc"
+import tempfile
+
+SOCKET_PATH = os.path.join(tempfile.gettempdir(), "mpv-minimax-ipc")
 
 
 class MpvIPC:

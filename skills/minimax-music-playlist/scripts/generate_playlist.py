@@ -502,10 +502,15 @@ def generate_playlist(profile: dict, theme: str | None, count: int) -> dict:
     genre_names = list(genres.keys())
     genre_weights = [genres[g] for g in genre_names]
 
-    # --- Prepare language weights ---
+    # --- Prepare language weights (only Chinese and English) ---
     languages = profile["languages"]
     if not languages:
-        languages = {"中文": 1.0}
+        languages = {"English": 1.0}
+    # Filter to only Chinese and English
+    allowed_langs = {"中文", "英语", "Chinese", "English"}
+    languages = {k: v for k, v in languages.items() if k in allowed_langs}
+    if not languages:
+        languages = {"English": 1.0}
     lang_names = list(languages.keys())
     lang_weights = [languages[l] for l in lang_names]
 

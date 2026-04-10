@@ -10,8 +10,8 @@ Usage:
       --apple-music /tmp/apple_music_data.json \
       --qq-music /tmp/qq_music_data.json \
       --gen-history ~/Music/minimax-gen/ \
-      --artist-map /path/to/data/artist_genre_map.json \
-      --output ~/.claude/skills/minimax-music-playlist/data/taste_profile.json
+      --artist-map ../data/artist_genre_map.json \
+      --output ../data/taste_profile.json
 """
 
 import argparse

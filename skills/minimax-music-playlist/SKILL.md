@@ -17,7 +17,24 @@ metadata:
 Scan the user's local music libraries to build a taste profile, then generate
 a personalized playlist using the MiniMax Music API.
 
-**Requires**: `minimax-music-gen` skill installed at `~/.claude/skills/minimax-music-gen/`
+**Requires**: `minimax-music-gen` skill (for playback scripts)
+
+## Prerequisites
+
+- **mmx CLI** (required for music generation):
+
+  **Install:**
+  ```bash
+  npm install -g mmx-cli
+  ```
+
+  **Authenticate (first time only):**
+  ```bash
+  mmx auth login --api-key <your-minimax-api-key>
+  ```
+  Get your API key from [MiniMax Platform](https://platform.minimaxi.com/).
+
+- Python 3.8+ (all scripts use only stdlib).
 
 ---
 
@@ -154,7 +171,6 @@ weighted scores, and outputs a taste profile.
 🎵 你的音乐画像：
   📊 数据源：QQ音乐 145首 | Apple Music 42首 | Spotify 20首 | 网易云 15首 | 已生成 9首
   🎸 Top 风格：华语流行 35% | R&B 20% | K-pop 10% | 中国风 8%
-  🌍 语言：中文 70% | 韩语 12% | 英语 10% | 日语 8%
   💭 情绪：忧郁 30% | 浪漫 25% | 温暖 20%
   🎤 声线：偏好男声 55% | 女声 40%
   🎵 Top 艺术家：周杰伦、陶喆、孙燕姿、王力宏、方大同
@@ -167,7 +183,6 @@ weighted scores, and outputs a taste profile.
 🎵 Your Music Profile:
   📊 Sources: QQ Music 145 | Apple Music 42 | Spotify 20 | NetEase 15 | Generated 9
   🎸 Top styles: C-pop 35% | R&B 20% | K-pop 10% | Chinese-style 8%
-  🌍 Languages: Chinese 70% | Korean 12% | English 10% | Japanese 8%
   💭 Moods: Melancholy 30% | Romantic 25% | Warm 20%
   🎤 Vocals: Male 55% | Female 40%
   🎵 Top artists: Jay Chou, David Tao, Stefanie Sun, Leehom Wang, Khalil Fong
@@ -180,10 +195,11 @@ Does this look right? (Confirm to generate playlist, or tell me what to adjust)
 The taste profile is saved at:
 `~/.claude/skills/minimax-music-playlist/data/taste_profile.json`
 
-- **First time**: Always scan and build
-- **Subsequent calls**: If a profile exists and is less than 7 days old, reuse it.
+Before running the scan + build pipeline, check if a profile already exists:
+- **If profile exists and is less than 7 days old**: skip scanning, reuse the profile.
   Show the summary and ask if the user wants to rescan.
-- **Force rescan**: If the user says "重新扫描" or "rescan", delete and rebuild.
+- **If profile is older than 7 days or doesn't exist**: run the full scan + build.
+- **Force rescan**: If the user says "重新扫描" or "rescan", delete the file and rebuild.
 
 ---
 
@@ -282,90 +298,58 @@ The user can:
 
 ---
 
-## Step 4: Generate & Play (Stream Mode)
+## Step 4: Generate All Songs
 
-Generate songs sequentially. **Play each song as soon as it's ready** instead of
-waiting for all songs to finish. This gives the user music to listen to while the
-rest of the playlist is being generated.
+Generate all songs concurrently, then play the complete playlist.
 
-### Generation + Playback Loop
+### Concurrent Generation
 
-For each song in the plan:
+**Concurrency rules:**
+- Up to **5 songs in parallel**
 
-1. If `instrumental: false`, generate lyrics first:
-   ```bash
-   python3 ~/.claude/skills/minimax-music-gen/scripts/generate_lyrics.py \
-     --prompt "<lyrics_prompt from plan>" \
-     --lang $LANG \
-     --output /tmp/playlist_lyrics_<NN>.txt
-   ```
+Launch songs in batches. For a 5-song playlist with mmx, launch all 5 at once.
+For a 10-song playlist, launch songs 1-5, then 6-10 when the first batch finishes.
 
-2. Generate music (always `--no-play` during generation):
-   ```bash
-   python3 ~/.claude/skills/minimax-music-gen/scripts/generate_music.py \
-     --prompt "<prompt from plan>" \
-     --lyrics "<lyrics or empty>" \
-     --output ~/Music/minimax-gen/playlists/<playlist_name>/<filename> \
-     --lang $LANG \
-     --no-play
-   ```
-   # Add --instrumental for instrumental tracks. Omit for vocal tracks.
+**Example (5 songs, mmx CLI, all parallel):**
 
-3. **After each song completes, decide whether to play it immediately:**
+```bash
+# Launch all 5 in parallel (background with &, wait for all)
+mmx music generate --prompt "<prompt_1>" --lyrics-optimizer \
+  --out ~/Music/minimax-gen/playlists/<name>/01_xxx.mp3 --quiet --non-interactive &
+mmx music generate --prompt "<prompt_2>" --instrumental \
+  --out ~/Music/minimax-gen/playlists/<name>/02_xxx.mp3 --quiet --non-interactive &
+mmx music generate --prompt "<prompt_3>" --lyrics-optimizer \
+  --out ~/Music/minimax-gen/playlists/<name>/03_xxx.mp3 --quiet --non-interactive &
+mmx music generate --prompt "<prompt_4>" --instrumental \
+  --out ~/Music/minimax-gen/playlists/<name>/04_xxx.mp3 --quiet --non-interactive &
+mmx music generate --prompt "<prompt_5>" --lyrics-optimizer \
+  --out ~/Music/minimax-gen/playlists/<name>/05_xxx.mp3 --quiet --non-interactive &
+wait
+```
 
-   - **Song 1 (first song):** Always play immediately after generation. Use
-     `play_music.py --background` so playback starts without blocking generation
-     of the next song:
-     ```bash
-     python3 ~/.claude/skills/minimax-music-gen/scripts/play_music.py \
-       ~/Music/minimax-gen/playlists/<playlist_name>/<filename> \
-       --background --lang $LANG
-     ```
-
-   - **Song 2+ (subsequent songs):** Check if Music.app is idle (not playing).
-     Use the `is_idle` check from `play_playlist.py`:
-     ```bash
-     python3 -c "
-     import subprocess
-     r = subprocess.run(['osascript', '-e',
-       'tell application \"System Events\" to (name of processes) contains \"Music\"'],
-       capture_output=True, text=True, timeout=5)
-     if r.stdout.strip() != 'true':
-         print('idle')
-     else:
-         s = subprocess.run(['osascript', '-e',
-           'tell application \"Music\" to player state as string'],
-           capture_output=True, text=True, timeout=5)
-         state = s.stdout.strip().lower()
-         print('idle' if 'playing' not in state else 'playing')
-     "
-     ```
-     - If **idle** → play this song immediately with `play_music.py --background`
-     - If **playing** → do NOT interrupt; the song is saved to disk and will be
-       available for replay later. Show a note:
-
-     **If LANG=zh:** `💾 [2/5] 已保存，播放器正忙，稍后可重播`
-     **If LANG=en:** `💾 [2/5] Saved, player busy — available for replay later`
-
-4. Show progress after each song:
+Show progress as each finishes:
 
 **If LANG=zh:**
 ```
+⏳ 正在并发生成 5 首歌曲...
 ✅ [1/5] 生成完毕：01_bossa_nova.mp3
-▶️  正在播放...
-⏳ [2/5] 正在生成...
+✅ [2/5] 生成完毕：03_indie_folk.mp3
+✅ [3/5] 生成完毕：02_kpop_stars.mp3
+✅ [4/5] 生成完毕：05_jazz.mp3
+✅ [5/5] 生成完毕：04_lofi.mp3
 ```
 
 **If LANG=en:**
 ```
+⏳ Generating 5 songs concurrently...
 ✅ [1/5] Complete: 01_bossa_nova.mp3
-▶️  Now playing...
-⏳ [2/5] Generating...
+✅ [2/5] Complete: 03_indie_folk.mp3
+...
 ```
 
-5. If generation fails for a song, log the error and continue with the next song.
+If generation fails for a song, log the error and continue — do not block other songs.
 
-### When all songs complete:
+### When all songs are generated, play the playlist:
 
 **If LANG=zh:**
 ```
@@ -376,7 +360,7 @@ For each song in the plan:
   02_kpop_stars.mp3
   ...
 
-💡 重播整个歌单：告诉我「重播」
+▶️  开始播放歌单...
 ```
 
 **If LANG=en:**
@@ -388,12 +372,27 @@ For each song in the plan:
   02_kpop_stars.mp3
   ...
 
-💡 Replay the full playlist: just say "replay"
+▶️  Starting playlist playback...
+```
+
+Play the complete playlist using the dedicated script:
+
+```bash
+python3 ~/.claude/skills/minimax-music-gen/scripts/play_playlist.py \
+  ~/Music/minimax-gen/playlists/<playlist_name>/ \
+  --lang $LANG \
+  --auto
 ```
 
 ### Replaying existing playlists
 
-For replaying a previously generated playlist, use the dedicated script:
+If the user asks to replay a previously generated playlist:
+
+```bash
+ls ~/Music/minimax-gen/playlists/
+```
+
+Show available playlists and play the selected one:
 
 ```bash
 python3 ~/.claude/skills/minimax-music-gen/scripts/play_playlist.py \
@@ -513,5 +512,6 @@ Show available playlists and play the selected one song by song.
 - Generated playlists are saved alongside individual songs in `~/Music/minimax-gen/playlists/`.
 - The taste profile is persistent across sessions.
 - All scripts use Python stdlib only — no pip dependencies.
-- Reuses `generate_lyrics.py`, `generate_music.py`, `play_music.py` from
-  `~/.claude/skills/minimax-music-gen/scripts/`.
+- Reuses `play_music.py`, `play_playlist.py` from
+  `~/.claude/skills/minimax-music-gen/scripts/` for playback.
+- Music generation uses `mmx music generate` CLI directly.

@@ -616,7 +616,7 @@ def output_result(result: dict, output_path: str = None):
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(json_str)
-        print(f"Wrote {result.get('track_count', 0)} tracks to {output_path}", file=sys.stderr)
+        print(f"Wrote {len(result.get('tracks', []))} tracks to {output_path}", file=sys.stderr)
     else:
         print(json_str)
 

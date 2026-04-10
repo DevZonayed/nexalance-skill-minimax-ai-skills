@@ -17,7 +17,22 @@ metadata:
 Turn your Claude Code pet into a singer. Each pet gets a unique vocal identity
 based on its name and personality — the same pet always sounds the same.
 
-**Requires**: `minimax-music-gen` skill installed at `~/.claude/skills/minimax-music-gen/`
+**Requires**: `minimax-music-gen` skill (for playback scripts and prompt guide)
+
+## Prerequisites
+
+- **mmx CLI** (required for music generation):
+
+  **Install:**
+  ```bash
+  npm install -g mmx-cli
+  ```
+
+  **Authenticate (first time only):**
+  ```bash
+  mmx auth login --api-key <your-minimax-api-key>
+  ```
+  Get your API key from [MiniMax Platform](https://platform.minimaxi.com/).
 
 ---
 
@@ -275,33 +290,37 @@ Combine the vocal identity with the chosen theme.
    Before constructing the prompt, recall what genre was used in the previous
    generation (if any in this session) and pick something different.
 
-   **Prompt structure**:
+   **Prompt structure** — write as vivid English sentences, not comma-separated tags:
    ```
-   <vocal prompt_fragment>, <genre>, <sub-genre>, <mood>, <instruments>, <tempo>, <scene>
+   <vocal prompt_fragment>. A <genre> song with <mood> mood, featuring <instruments>,
+   at a <tempo> tempo, evoking <scene>.
    ```
 
    **Diverse examples**:
    ```
    # 鼓励上班
-   deep warm androgynous voice..., synth-pop, 活力, 燃, 合成器, 电子鼓, 快板, 清晨通勤
+   A deep warm androgynous voice with cozy delivery. An energetic synth-pop track
+   with a fiery, uplifting mood, driven by pulsing synthesizers and electronic drums
+   at a fast tempo, capturing the rush of a morning commute.
 
    # 等主人回家
-   deep warm androgynous voice..., city pop, 温暖, 甜蜜, 电钢琴, 贝斯, 中板, 午后窗台
+   A deep warm androgynous voice with cozy delivery. A warm city pop song with sweet,
+   tender feelings, featuring electric piano and groovy bass at a mid-tempo pace,
+   set on a sunny afternoon windowsill waiting for someone to come home.
 
    # 吐槽加班
-   deep warm androgynous voice..., funk, 幽默, 慵懒, 贝斯, 铜管, 律动感, 深夜办公室
+   A deep warm androgynous voice with cozy delivery. A playful funk track with a
+   humorous, laid-back vibe, featuring slap bass and brass at a groovy mid-tempo,
+   capturing the absurdity of working late in a dim office.
 
    # 深夜陪伴
-   deep warm androgynous voice..., lo-fi hip-hop, 平静, 治愈, 采样钢琴, 电子鼓, 慢板, 深夜书桌
+   A deep warm androgynous voice with cozy delivery. A calm lo-fi hip-hop piece with
+   a healing, dreamy atmosphere, featuring sampled piano and soft electronic drums
+   at a slow tempo, evoking a quiet late-night desk with warm lamp light.
    ```
 
-2. **Generate lyrics**: Use the lyrics API:
-   ```bash
-   python3 ~/.claude/skills/minimax-music-gen/scripts/generate_lyrics.py \
-     --prompt "<theme description>" \
-     --lang $LANG \
-     --output /tmp/buddy_lyrics.txt
-   ```
+2. **Generate lyrics**: Use `--lyrics-optimizer` to auto-generate lyrics, or write lyrics
+   yourself when you need to control the perspective.
 
    **Important — perspective & personality-driven lyrics**:
    
@@ -322,8 +341,8 @@ Combine the vocal identity with the chosen theme.
    The pet's name may appear in the lyrics (e.g., in a chorus hook) but the
    narrative voice is always the pet speaking/singing.
 
-   If the API lyrics don't match the correct perspective or personality,
-   rewrite them yourself.
+   **When perspective matters**: Write the lyrics yourself and pass via `--lyrics`.
+   **When perspective is not critical**: Use `--lyrics-optimizer` for convenience.
 
 3. **Preview (MUST show full content)**: Before generating, show the user the
    **complete lyrics** and **full prompt** — no abbreviation, no `...`, no summary.
@@ -381,13 +400,23 @@ Combine the vocal identity with the chosen theme.
    The user should see exactly what will be sent to the API.
 
 4. **Call music generation**:
+
+   **With auto-generated lyrics (perspective not critical):**
    ```bash
-   python3 ~/.claude/skills/minimax-music-gen/scripts/generate_music.py \
+   mmx music generate \
      --prompt "<full combined prompt>" \
-     --lyrics "<lyrics>" \
-     --output ~/Music/minimax-gen/<name>_sings_<YYYYMMDD_HHMMSS>.mp3 \
-     --lang $LANG \
-     --stream
+     --lyrics-optimizer \
+     --out ~/Music/minimax-gen/<name>_sings_<YYYYMMDD_HHMMSS>.mp3 \
+     --quiet --non-interactive
+   ```
+
+   **With self-written lyrics (perspective-controlled):**
+   ```bash
+   mmx music generate \
+     --prompt "<full combined prompt>" \
+     --lyrics "<lyrics with correct pet perspective>" \
+     --out ~/Music/minimax-gen/<name>_sings_<YYYYMMDD_HHMMSS>.mp3 \
+     --quiet --non-interactive
    ```
 
 ---
@@ -432,7 +461,7 @@ After playback, ask for feedback:
 |-----------|--------|
 | No `~/.claude.json` | Tell user to run `/buddy` first |
 | Companion field is empty | Same — guide to `/buddy` |
-| minimax-music-gen not installed | Print: "需要先安装 minimax-music-gen skill" |
+| minimax-music-gen not installed | Print: "需要安装 mmx CLI: npm install -g mmx-cli && mmx auth login" |
 | No memory files found (Memory Mode) | Suggest Custom or Random mode |
 | User wants to change the pet's voice | Delete cache, re-interpret personality |
 | User wants a specific genre | Let them override — append their genre to the prompt |
