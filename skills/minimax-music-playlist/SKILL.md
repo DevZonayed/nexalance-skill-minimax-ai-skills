@@ -17,7 +17,7 @@ metadata:
 Scan the user's local music libraries to build a taste profile, then generate
 a personalized playlist using the MiniMax Music API.
 
-**Requires**: `minimax-music-gen` skill (for playback scripts)
+**Self-contained**: all scripts (including playback) are in this skill's `scripts/` directory.
 
 ## Prerequisites
 
@@ -46,11 +46,16 @@ Scan music sources → Build taste profile → Plan playlist → Generate songs 
 
 ## Language Detection
 
-Detect the user's language from their message at the start of the session:
-- Chinese (中文) → Set `LANG=zh` — all interactions in Chinese, generate Chinese lyrics
-- English → Set `LANG=en` — all interactions in English, generate English lyrics
+Detect the user's **interaction language** from their message at the start of the session:
+- Chinese (中文) → Set `LANG=zh` — all UI interactions in Chinese
+- English → Set `LANG=en` — all UI interactions in English
 
-Pass `--lang $LANG` to generation and playback scripts (not scan scripts).
+**IMPORTANT — `LANG` controls UI only, NOT lyrics language.**
+Each song's lyrics language is determined independently by its genre/style (see
+"Per-song lyrics language" in Step 3). A Chinese-speaking user can get a playlist
+with Korean, Japanese, English, and Chinese songs mixed together.
+
+Pass `--lang $LANG` to playback scripts (not scan scripts).
 Respond to the user in their detected language. Use the matching template below.
 
 ---
@@ -233,6 +238,30 @@ Ask the user for a theme (optional):
 
 If the user doesn't specify, use the top mood from their profile as default.
 
+### Per-song lyrics language
+
+Each song in the playlist gets its own `lyrics_lang` based on its genre/style.
+Use this mapping to assign the natural language for each genre:
+
+| Genre / Style | lyrics_lang | Notes |
+|---------------|-------------|-------|
+| K-pop, Korean R&B, Korean ballad | Korean (한국어) | |
+| J-pop, city pop, J-rock, anime OST | Japanese (日本語) | |
+| Latin pop, reggaeton, bossa nova | Spanish/Portuguese | bossa nova → Portuguese |
+| C-pop, 华语流行, 中国风 | Chinese (中文) | |
+| Western pop, indie, rock, jazz, R&B | English | |
+| Hip-hop, rap | Match artist region or user preference | |
+| Instrumental, lo-fi, ambient | N/A (no lyrics) | Use `--instrumental` |
+
+**Rules**:
+- If the taste profile shows a strong genre preference (e.g., K-pop 20%), plan some
+  songs in that genre's native language — don't force everything into zh/en.
+- The user can override per-song: "第2首改成中文" → change that song's lyrics_lang.
+- When showing the plan, display the lyrics language tag clearly (e.g., `[韩语/女声]`).
+- The `--prompt` for each song MUST include an explicit lyrics language instruction,
+  e.g., "with Korean lyrics" or "sung in Japanese". This guides the API to generate
+  lyrics in the correct language when using `--lyrics-optimizer`.
+
 Generate the playlist plan:
 
 ```bash
@@ -251,19 +280,19 @@ python3 ~/.claude/skills/minimax-music-playlist/scripts/generate_playlist.py \
 🎵 歌单计划：深夜放松 (5首)
 
   1. 华语R&B慢歌 — 忧郁, 内省 [中文/男声]
-     Prompt: R&B, neo-soul, 忧郁, 内省, 温柔男声, 电钢琴, 贝斯, 慢板, 深夜独处
+     Prompt: R&B, neo-soul, 忧郁, 内省, 温柔男声, 电钢琴, 贝斯, 慢板, 深夜独处, sung in Chinese
 
   2. K-pop 抒情 — 温暖, 浪漫 [韩语/女声]
-     Prompt: K-pop, 流行, 温暖, 浪漫, 清澈女声, 合成器, 钢琴, 中板, 星空下
+     Prompt: K-pop, 流行, 温暖, 浪漫, 清澈女声, 合成器, 钢琴, 中板, 星空下, with Korean lyrics
 
   3. 独立民谣 — 内省, 平静 [中文/男声]
-     Prompt: 独立民谣, folk, 内省, 平静, 温柔男声, 原声吉他, 口琴, 慢板, 深夜独处
+     Prompt: 独立民谣, folk, 内省, 平静, 温柔男声, 原声吉他, 口琴, 慢板, 深夜独处, sung in Chinese
 
   4. Lo-fi hip-hop — 平静, 梦幻 [纯音乐]
      Prompt: lo-fi hip-hop, 平静, 梦幻, 采样钢琴, 电子鼓, vinyl crackle, 慢板, 深夜书桌
 
   5. 爵士 — 温暖, 浪漫 [英语/女声]
-     Prompt: smooth jazz, bossa nova, 温暖, 浪漫, 清澈女声, 钢琴, 贝斯, 萨克斯, 中板
+     Prompt: smooth jazz, bossa nova, 温暖, 浪漫, 清澈女声, 钢琴, 贝斯, 萨克斯, 中板, with English lyrics
 
 确认生成？(直接回车确认，或告诉我要调整哪首)
 ```
@@ -273,19 +302,19 @@ python3 ~/.claude/skills/minimax-music-playlist/scripts/generate_playlist.py \
 🎵 Playlist Plan: Late Night Chill (5 songs)
 
   1. C-pop R&B Ballad — melancholy, introspective [Chinese/male vocal]
-     Prompt: R&B, neo-soul, melancholy, introspective, gentle male voice, electric piano, bass, slow tempo, late night solitude
+     Prompt: R&B, neo-soul, melancholy, introspective, gentle male voice, electric piano, bass, slow tempo, late night solitude, sung in Chinese
 
   2. K-pop Ballad — warm, romantic [Korean/female vocal]
-     Prompt: K-pop, pop, warm, romantic, clear female voice, synth, piano, mid-tempo, under the stars
+     Prompt: K-pop, pop, warm, romantic, clear female voice, synth, piano, mid-tempo, under the stars, with Korean lyrics
 
   3. Indie Folk — introspective, calm [Chinese/male vocal]
-     Prompt: indie folk, folk, introspective, calm, gentle male voice, acoustic guitar, harmonica, slow tempo, late night solitude
+     Prompt: indie folk, folk, introspective, calm, gentle male voice, acoustic guitar, harmonica, slow tempo, late night solitude, sung in Chinese
 
   4. Lo-fi hip-hop — calm, dreamy [instrumental]
      Prompt: lo-fi hip-hop, calm, dreamy, sampled piano, electronic drums, vinyl crackle, slow tempo, late night desk
 
   5. Jazz — warm, romantic [English/female vocal]
-     Prompt: smooth jazz, bossa nova, warm, romantic, clear female voice, piano, bass, saxophone, mid-tempo
+     Prompt: smooth jazz, bossa nova, warm, romantic, clear female voice, piano, bass, saxophone, mid-tempo, with English lyrics
 
 Confirm? (press enter to confirm, or tell me which song to adjust)
 ```
@@ -301,6 +330,10 @@ The user can:
 ## Step 4: Generate All Songs
 
 Generate all songs concurrently, then play the complete playlist.
+
+**IMPORTANT**: Do NOT play individual songs after each `mmx music generate` call.
+Skip any per-song playback logic from the `minimax-music-gen` skill.
+Only play the complete playlist at the end using `play_playlist.py`.
 
 ### Concurrent Generation
 
@@ -378,7 +411,7 @@ If generation fails for a song, log the error and continue — do not block othe
 Play the complete playlist using the dedicated script:
 
 ```bash
-python3 ~/.claude/skills/minimax-music-gen/scripts/play_playlist.py \
+python3 ~/.claude/skills/minimax-music-playlist/scripts/play_playlist.py \
   ~/Music/minimax-gen/playlists/<playlist_name>/ \
   --lang $LANG \
   --auto
@@ -395,7 +428,7 @@ ls ~/Music/minimax-gen/playlists/
 Show available playlists and play the selected one:
 
 ```bash
-python3 ~/.claude/skills/minimax-music-gen/scripts/play_playlist.py \
+python3 ~/.claude/skills/minimax-music-playlist/scripts/play_playlist.py \
   ~/Music/minimax-gen/playlists/<playlist_name>/ \
   --lang $LANG \
   --auto
@@ -512,6 +545,4 @@ Show available playlists and play the selected one song by song.
 - Generated playlists are saved alongside individual songs in `~/Music/minimax-gen/playlists/`.
 - The taste profile is persistent across sessions.
 - All scripts use Python stdlib only — no pip dependencies.
-- Reuses `play_music.py`, `play_playlist.py` from
-  `~/.claude/skills/minimax-music-gen/scripts/` for playback.
 - Music generation uses `mmx music generate` CLI directly.
