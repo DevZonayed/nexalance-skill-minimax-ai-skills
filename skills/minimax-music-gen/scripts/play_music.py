@@ -31,8 +31,6 @@ import time
 import urllib.request
 from pathlib import Path
 
-sys.path.insert(0, os.path.expanduser("~/.claude/skills/shared"))
-from i18n import msg
 
 LANG = "zh"
 
@@ -48,16 +46,16 @@ def find_player():
         return {
             "name": "open",
             "cmd": ["open"],
-            "description": msg("player_open_desc", LANG),
+            "description": "macOS Music.app (system default)",
         }
 
     players = [
         {"name": "mpv", "cmd": ["mpv", "--no-video"],
-         "description": msg("player_mpv_desc", LANG)},
+         "description": "mpv (terminal player)"},
         {"name": "ffplay", "cmd": ["ffplay", "-nodisp", "-autoexit"],
-         "description": msg("player_ffplay_desc", LANG)},
+         "description": "ffplay (FFmpeg player)"},
         {"name": "afplay", "cmd": ["afplay"],
-         "description": msg("player_afplay_desc", LANG)},
+         "description": "afplay (macOS built-in)"},
     ]
     for player in players:
         if shutil.which(player["name"]):
@@ -258,7 +256,7 @@ def stream_from_url(url, save_path=None):
     Opens the URL with `open` so the system player handles playback.
     Optionally saves the file to save_path in the background.
     """
-    print(msg("opening_player", LANG))
+    print("▶️  Opening player...")
 
     # Start background download if save_path given
     if save_path:
@@ -268,9 +266,9 @@ def stream_from_url(url, save_path=None):
         def download():
             try:
                 urllib.request.urlretrieve(url, str(save_path))
-                print(msg("file_saved_to", LANG, path=save_path))
+                print(f"💾 Saved to: {save_path}")
             except Exception as e:
-                print(msg("download_failed", LANG, error=e).lstrip("\r"), file=sys.stderr)
+                print(f"❌ Download failed: {e}", file=sys.stderr)
 
         t = threading.Thread(target=download, daemon=True)
         t.start()
@@ -299,37 +297,37 @@ def main():
 
     # File mode
     if not args.filepath:
-        parser.error(msg("need_filepath_or_url", LANG))
+        parser.error("Please provide a file path or --url")
 
     filepath = Path(args.filepath).expanduser()
 
     if not filepath.exists():
-        print(msg("file_not_found", LANG, path=filepath))
+        print(f"❌ File not found: {filepath}")
         sys.exit(1)
 
     if not filepath.suffix.lower() in (".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac"):
-        print(msg("unsupported_format", LANG, suffix=filepath.suffix))
+        print(f"⚠️  Unsupported format: {filepath.suffix}")
 
     # File info
     size_kb = filepath.stat().st_size // 1024
     duration = get_duration_ffprobe(filepath)
-    duration_str = f"{int(duration // 60)}:{int(duration % 60):02d}" if duration else msg("duration_unknown", LANG)
+    duration_str = f"{int(duration // 60)}:{int(duration % 60):02d}" if duration else "unknown"
 
-    print(msg("file_info", LANG, name=filepath.name))
-    print(msg("file_size_duration", LANG, size=size_kb, duration=duration_str))
+    print(f"🎵 {filepath.name}")
+    print(f"   Size: {size_kb} KB | Duration: {duration_str}")
 
     # Find player
     player = find_player()
     if not player:
-        print(msg("no_player_found", LANG))
-        print(msg("suggest_install_mpv", LANG))
+        print("❌ No audio player found.")
+        print("   Install one of: mpv, ffplay, afplay")
         print("   macOS:  brew install mpv")
         print("   Ubuntu: sudo apt install mpv")
         print("   Arch:   sudo pacman -S mpv")
-        print(f"\n{msg('file_saved_at', LANG, path=filepath)}")
+        print(f"\nFile saved at: {filepath}")
         sys.exit(1)
 
-    print(msg("using_player", LANG, desc=player['description']))
+    print(f"▶️  Using: {player['description']}")
     print()
 
     # Play
@@ -357,13 +355,13 @@ def main():
     status_json = json.dumps({"status": status})
 
     if status == "launched":
-        print(msg("bg_playing", LANG))
+        print("▶️  Playing in background...")
     elif status == "finished":
-        print(msg("playback_finished", LANG))
+        print("✅ Playback finished.")
     elif status == "paused":
-        print(msg("user_paused", LANG))
+        print("⏸️  Paused by user.")
     else:
-        print(msg("playback_stopped", LANG))
+        print("⏹️  Playback stopped.")
 
     print(status_json)
     return 0 if status in ("finished", "launched") else 1

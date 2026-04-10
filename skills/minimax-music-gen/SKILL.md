@@ -9,6 +9,10 @@ description: >
   music. Even casual requests like "给我来点音乐" or "I want a chill beat" should trigger
   this skill. Do NOT use for music playback of existing files, music theory questions, or
   music recommendation without generation.
+license: MIT
+metadata:
+  version: "1.0"
+  category: creative
 ---
 
 # MiniMax Music Generation Skill

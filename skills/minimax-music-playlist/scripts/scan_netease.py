@@ -24,10 +24,7 @@ import urllib.error
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, os.path.expanduser("~/.claude/skills/shared"))
-from i18n import msg
 
-LANG = "zh"
 
 
 # ---------------------------------------------------------------------------
@@ -493,11 +490,7 @@ def scan_user_playlists(uid: str) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Scan NetEase Cloud Music local data on macOS")
     parser.add_argument("--output", default=None, help="Output JSON file path")
-    parser.add_argument("--lang", default="zh", choices=["zh", "en"], help="UI language")
     args = parser.parse_args()
-
-    global LANG
-    LANG = args.lang
 
     if not is_installed():
         result = {
@@ -510,7 +503,7 @@ def main():
         print("NetEase Cloud Music is not installed.", file=sys.stderr)
         return
 
-    print(msg("scanning_netease", LANG), file=sys.stderr)
+    print("🔍 Scanning NetEase Cloud Music...", file=sys.stderr)
 
     all_tracks = []
     all_playlists = []

@@ -10,7 +10,7 @@ Usage:
       --apple-music /tmp/apple_music_data.json \
       --qq-music /tmp/qq_music_data.json \
       --gen-history ~/Music/minimax-gen/ \
-      --artist-map ~/.claude/skills/minimax-music-playlist/data/artist_genre_map.json \
+      --artist-map /path/to/data/artist_genre_map.json \
       --output ~/.claude/skills/minimax-music-playlist/data/taste_profile.json
 """
 
@@ -22,9 +22,12 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 
-sys.path.insert(0, os.path.expanduser("~/.claude/skills/shared"))
-from i18n import msg
-from api_base import get_api_base
+
+def get_api_base(api_key):
+    """Auto-detect overseas vs domestic API domain based on key prefix."""
+    if api_key and api_key.startswith("eyJ"):
+        return "https://api.minimaxi.com"
+    return "https://api.minimax.io"
 
 LANG = "zh"
 
@@ -459,7 +462,7 @@ def _lookup_artist(name: str, artist_map: dict, *, online: bool = True, map_path
     if online and name.strip():
         result = _query_musicbrainz(name)
         if result:
-            print(msg("querying_musicbrainz", LANG, name=name), file=sys.stderr, end="", flush=True)
+            print(f"  🔍 Querying MusicBrainz for: {name}", file=sys.stderr, end="", flush=True)
             print(f" → {', '.join(result['genres'])}", file=sys.stderr)
             # Cache to artist_map and persist
             artist_map[name] = result
@@ -880,19 +883,19 @@ def print_summary(profile: dict):
     parts = []
     if "qq_music" in sources:
         cnt = sources['qq_music']['track_count']
-        parts.append(f"{msg('source_label_qq', LANG)} {cnt}{msg('tracks_unit', LANG)}")
+        parts.append(f"QQ Music {cnt} tracks")
     if "apple_music" in sources:
         cnt = sources['apple_music']['track_count']
-        parts.append(f"{msg('source_label_apple', LANG)} {cnt}{msg('tracks_unit', LANG)}")
+        parts.append(f"Apple Music {cnt} tracks")
     if "spotify" in sources:
         cnt = sources['spotify']['track_count']
-        parts.append(f"{msg('source_label_spotify', LANG)} {cnt}{msg('tracks_unit', LANG)}")
+        parts.append(f"Spotify {cnt} tracks")
     if "netease" in sources:
         cnt = sources['netease']['track_count']
-        parts.append(f"{msg('source_label_netease', LANG)} {cnt}{msg('tracks_unit', LANG)}")
+        parts.append(f"NetEase {cnt} tracks")
     if "generated" in sources:
         cnt = sources['generated']['track_count']
-        parts.append(f"{msg('source_label_generated', LANG)} {cnt}{msg('tracks_unit', LANG)}")
+        parts.append(f"Generated {cnt} tracks")
     no_source = "无数据源" if LANG == "zh" else "No data sources"
     source_str = " | ".join(parts) if parts else no_source
 
@@ -907,10 +910,11 @@ def print_summary(profile: dict):
     mood_str = " | ".join(_top_n_pct(moods, 3)) or none_label
 
     vocal_parts = []
+    label_map = {"label_male": "Male", "label_female": "Female", "label_instrumental": "Instrumental"}
     for label_key, key in [("label_male", "male"), ("label_female", "female"), ("label_instrumental", "instrumental")]:
         v = vocals.get(key, 0)
         if v > 0:
-            vocal_parts.append(f"{msg(label_key, LANG)} {int(v * 100)}%")
+            vocal_parts.append(f"{label_map[label_key]} {int(v * 100)}%")
     vocal_str = " | ".join(vocal_parts) or none_label
 
     print("🎵 音乐画像构建完成！" if LANG == "zh" else "🎵 Music taste profile built!", file=sys.stderr)
@@ -933,11 +937,13 @@ def main():
                         help="Path to NetEase Cloud Music scan JSON")
     parser.add_argument("--gen-history", default=None,
                         help="Path to generated music history directory")
+    _skill_root = os.path.join(os.path.dirname(__file__), "..")
+
     parser.add_argument("--artist-map",
-                        default="~/.claude/skills/minimax-music-playlist/data/artist_genre_map.json",
+                        default=os.path.join(_skill_root, "data", "artist_genre_map.json"),
                         help="Path to artist_genre_map.json")
     parser.add_argument("--output",
-                        default="~/.claude/skills/minimax-music-playlist/data/taste_profile.json",
+                        default=os.path.join(_skill_root, "data", "taste_profile.json"),
                         help="Output path for taste_profile.json")
     parser.add_argument("--lang", default="zh", choices=["zh", "en"],
                         help="UI language")

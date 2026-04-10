@@ -15,8 +15,6 @@ import random
 import sys
 from datetime import datetime, timezone
 
-sys.path.insert(0, os.path.expanduser("~/.claude/skills/shared"))
-from i18n import msg
 
 LANG = "zh"  # Module-level default, updated by main()
 
@@ -599,9 +597,9 @@ def generate_playlist(profile: dict, theme: str | None, count: int) -> dict:
         # (j) Build description
         if is_instrumental:
             desc = f"{chosen_genre} {sub_genre}，{mood1}"
-            vocal_label = msg("label_instrumental", LANG)
+            vocal_label = "Instrumental"
         else:
-            gender_label = msg("label_male", LANG) if vocal_type == "male" else msg("label_female", LANG)
+            gender_label = "Male" if vocal_type == "male" else "Female"
             desc = f"{chosen_genre} {sub_genre}，{mood1}"
             vocal_label = f"{language}/{gender_label}"
 
@@ -929,7 +927,7 @@ def _format_instrument_list(instruments: list[str]) -> str:
 def print_summary(playlist: dict, file=sys.stderr) -> None:
     theme = playlist["theme"]
     count = playlist["song_count"]
-    print(msg("playlist_plan_header", LANG, theme=theme, count=count), file=file)
+    print(f"🎵 Playlist Plan: {theme} ({count} songs)", file=file)
 
     for song in playlist["songs"]:
         idx = song["index"]
@@ -942,14 +940,14 @@ def print_summary(playlist: dict, file=sys.stderr) -> None:
             mood_str = f"{prompt_parts[2]}, {prompt_parts[3]}"
 
         if song["instrumental"]:
-            vocal_label = msg("label_instrumental", LANG)
+            vocal_label = "Instrumental"
         else:
             lang = song["language"]
             # Determine gender from prompt
             if any(m in song["prompt"] for m in ["\u7537\u58f0"]):
-                gender = msg("label_male", LANG)
+                gender = "Male"
             elif any(f in song["prompt"] for f in ["\u5973\u58f0"]):
-                gender = msg("label_female", LANG)
+                gender = "Female"
             else:
                 gender = ""
             vocal_label = f"{lang}/{gender}" if gender else lang

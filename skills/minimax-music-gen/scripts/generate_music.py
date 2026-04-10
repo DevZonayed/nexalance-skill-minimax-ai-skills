@@ -36,9 +36,12 @@ import urllib.error
 from pathlib import Path
 from datetime import datetime
 
-sys.path.insert(0, os.path.expanduser("~/.claude/skills/shared"))
-from i18n import msg
-from api_base import get_api_base
+
+def get_api_base(api_key):
+    """Auto-detect overseas vs domestic API domain based on key prefix."""
+    if api_key and api_key.startswith("eyJ"):
+        return "https://api.minimaxi.com"
+    return "https://api.minimax.io"
 
 LANG = "zh"  # Module-level default, updated by main()
 
@@ -64,8 +67,8 @@ def get_env(name, alt_name=None, required=True):
             with open(fpath) as f:
                 val = f.read().strip()
     if not val and required:
-        print(msg("env_not_set", LANG, name=name))
-        print(msg("env_run_export", LANG, name=name))
+        print(f"❌ {name} is not set.")
+        print(f"   Run: export {name}=<your-key>  or save to ~/.minimax_api_key")
         sys.exit(1)
     return val
 
@@ -91,7 +94,7 @@ def build_request_body(args):
     if args.cover and args.audio:
         audio_path = Path(args.audio).expanduser()
         if not audio_path.exists():
-            print(msg("file_not_found", LANG, path=str(audio_path)))
+            print(f"❌ File not found: {audio_path}")
             sys.exit(1)
         with open(audio_path, "rb") as f:
             body["audio_base64"] = base64.b64encode(f.read()).decode("utf-8")
@@ -141,7 +144,7 @@ def save_hex_audio(hex_data, output_path):
         f.write(audio_bytes)
 
     file_size = output.stat().st_size
-    print(msg("download_complete", LANG, output=output, size=file_size // 1024) + " " * 20)
+    print(f"✅ Saved: {output} ({file_size // 1024} KB)" + " " * 20)
     return str(output)
 
 
@@ -176,20 +179,20 @@ def main():
 
     # Display header
     model_display = "music-cover-free" if args.cover else args.model
-    print(msg("header_title", LANG))
-    print(msg("label_model", LANG, model=model_display))
+    print("🎵 MiniMax Music Generation")
+    print(f"   Model: {model_display}")
     if args.cover:
         print(f"   Cover: {args.audio or 'N/A'}")
     else:
-        print(msg("label_type", LANG, type=msg("type_instrumental", LANG) if args.instrumental else msg("type_vocal", LANG)))
+        print(f"   Type: {'Instrumental' if args.instrumental else 'Vocal'}")
     print(f"   Prompt: {args.prompt[:80]}{'...' if len(args.prompt) > 80 else ''}")
     if args.lyrics:
         lines = args.lyrics.replace("\\n", "\n").split("\n")
-        print(msg("label_lyrics", LANG, first_line=lines[0], count=len(lines)))
+        print(f"   Lyrics: {lines[0]} ({len(lines)} lines)")
     print()
 
     # Submit request (synchronous — waits for full generation)
-    print(msg("submitting_request", LANG))
+    print("⏳ Submitting request...")
     start_time = time.time()
     result, error = submit_generation(url, api_key, body, is_cover=args.cover)
 
@@ -199,7 +202,7 @@ def main():
             and current_model in MODEL_FALLBACKS:
         fallback_model = MODEL_FALLBACKS[current_model]
         err_detail = error or result.get("base_resp", {}).get("status_msg", "unknown")
-        print(f"⚠️  模型 {current_model} 失败 ({err_detail})，切换到 {fallback_model} 重试...")
+        print(f"⚠️  Model {current_model} failed ({err_detail}), retrying with {fallback_model}...")
         body["model"] = fallback_model
         model_display = fallback_model
         result, error = submit_generation(url, api_key, body, is_cover=args.cover)
@@ -224,24 +227,24 @@ def main():
         if base_resp.get("status_code", 0) != 0:
             print(f"❌ API Error: {base_resp.get('status_msg', 'unknown')}")
         else:
-            print(msg("no_audio_url", LANG))
-            print(msg("raw_response", LANG, resp=json.dumps(result, ensure_ascii=False, indent=2)[:1000]))
+            print("❌ No audio data in response.")
+            print(f"   Response: {json.dumps(result, ensure_ascii=False, indent=2)[:1000]}")
         sys.exit(1)
 
     # Save audio
     output_path = save_hex_audio(audio_hex, args.output)
-    print(msg("generation_complete", LANG, elapsed=int(elapsed)))
+    print(f"⏱️  Generation complete in {int(elapsed)}s")
 
     if not args.no_play:
         subprocess.Popen(["open", output_path])
         print()
-        print(msg("opened_player", LANG))
+        print("▶️  Opened in player")
 
     # Summary
     print()
     print("═" * 50)
-    print(msg("generation_success", LANG))
-    print(msg("file_path", LANG, path=output_path))
+    print("✅ Generation successful!")
+    print(f"   File: {output_path}")
     print("═" * 50)
 
     # Write metadata alongside the audio file
@@ -257,7 +260,7 @@ def main():
     }
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
-    print(msg("metadata_label", LANG, path=meta_path))
+    print(f"   Metadata: {meta_path}")
 
     # Machine-readable output for agent parsing (last line)
     print(json.dumps({"status": "ok", "file": str(output_path), "metadata": str(meta_path)}))

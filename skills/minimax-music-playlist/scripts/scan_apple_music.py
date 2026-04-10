@@ -9,10 +9,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-sys.path.insert(0, os.path.expanduser("~/.claude/skills/shared"))
-from i18n import msg
 
-LANG = "zh"
 
 
 APPLESCRIPT = r'''
@@ -137,11 +134,7 @@ def main():
     parser = argparse.ArgumentParser(description="Scan Apple Music library")
     parser.add_argument('--output', type=str, default=None,
                         help="Path to write JSON output (default: stdout)")
-    parser.add_argument("--lang", default="zh", choices=["zh", "en"], help="UI language")
     args = parser.parse_args()
-
-    global LANG
-    LANG = args.lang
 
     data = scan()
     output_json = json.dumps(data, ensure_ascii=False, indent=2)

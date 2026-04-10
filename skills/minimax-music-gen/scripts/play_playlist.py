@@ -25,8 +25,6 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, os.path.expanduser("~/.claude/skills/shared"))
-from i18n import msg
 
 LANG = "zh"
 
@@ -167,7 +165,7 @@ def get_duration_str(filepath: str) -> str:
 def play_playlist(files: list, auto: bool = False):
     """Play a list of files sequentially with smart state tracking."""
     total = len(files)
-    print(msg("playlist_count", LANG, total=total))
+    print(f"🎵 Playlist: {total} songs")
     for i, f in enumerate(files, 1):
         name = Path(f).stem
         dur = get_duration_str(f)
@@ -175,10 +173,10 @@ def play_playlist(files: list, auto: bool = False):
 
     # Ask user once before starting (skip in auto mode)
     if not auto:
-        print(msg("start_playback_prompt", LANG), end="", flush=True)
+        print("▶️  Start playback? [Y/n] ", end="", flush=True)
         answer = input().strip().lower()
         if answer not in ("y", "yes", "", "是", "好", "ok"):
-            print(msg("playback_cancelled", LANG))
+            print("❌ Playback cancelled.")
             print(json.dumps({"action": "cancelled", "played": 0, "total": total}))
             return
 
@@ -193,24 +191,24 @@ def play_playlist(files: list, auto: bool = False):
 
         # Play the file
         play_file(filepath)
-        print(msg("now_playing", LANG))
+        print("▶️  Now playing...")
 
         # Monitor until done
         status = monitor_until_done()
 
         if status == "finished":
-            print(msg("song_finished", LANG))
+            print("✅ Song finished.")
             # Auto-advance to next (user didn't intervene)
             auto_advance = True
 
         elif status == "paused":
-            print(msg("song_paused", LANG))
+            print("⏸️  Song paused.")
             if song_num < total:
                 if not auto:
-                    print(msg("play_next_prompt", LANG), end="", flush=True)
+                    print("▶️  Play next? [Y/n] ", end="", flush=True)
                     answer = input().strip().lower()
                     if answer not in ("y", "yes", "", "是", "好", "ok"):
-                        print(msg("playlist_ended", LANG, played=song_num, total=total))
+                        print(f"🎵 Playlist ended. Played {song_num}/{total}.")
                         print(json.dumps({
                             "action": "stopped_by_user",
                             "played": song_num,
@@ -221,13 +219,13 @@ def play_playlist(files: list, auto: bool = False):
                 auto_advance = True
 
         elif status == "stopped":
-            print(msg("player_stopped", LANG))
+            print("⏹️  Player stopped.")
             if song_num < total:
                 if not auto:
-                    print(msg("continue_next_prompt", LANG), end="", flush=True)
+                    print("▶️  Continue to next? [Y/n] ", end="", flush=True)
                     answer = input().strip().lower()
                     if answer not in ("y", "yes", "", "是", "好", "ok"):
-                        print(msg("playlist_ended", LANG, played=song_num, total=total))
+                        print(f"🎵 Playlist ended. Played {song_num}/{total}.")
                         print(json.dumps({
                             "action": "stopped_by_user",
                             "played": song_num,
@@ -238,7 +236,7 @@ def play_playlist(files: list, auto: bool = False):
                 auto_advance = True
 
     # All songs played
-    print(msg("playlist_complete", LANG, total=total))
+    print(f"🎉 Playlist complete! {total} songs played.")
     print(json.dumps({"action": "completed", "played": total, "total": total}))
 
 
@@ -275,7 +273,7 @@ def main():
             if os.path.exists(fp):
                 files.append(fp)
             else:
-                print(msg("file_missing_skip", LANG, path=fp), file=sys.stderr)
+                print(f"⚠️  File missing, skipping: {fp}", file=sys.stderr)
 
     elif args.files:
         for f in args.files:
@@ -288,10 +286,10 @@ def main():
             elif p.exists():
                 files.append(str(p))
             else:
-                print(msg("file_missing_skip", LANG, path=f), file=sys.stderr)
+                print(f"⚠️  File missing, skipping: {f}", file=sys.stderr)
 
     if not files:
-        print(msg("no_playable_files", LANG))
+        print("❌ No playable files found.")
         sys.exit(1)
 
     play_playlist(files, auto=args.auto)

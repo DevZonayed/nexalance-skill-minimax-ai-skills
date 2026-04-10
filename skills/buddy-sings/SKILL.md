@@ -6,6 +6,10 @@ description: >
   "宠物唱歌", "让宠物唱首歌", "让buddy唱歌", "buddy来一首", "我的宠物会唱歌吗",
   "pet sings", "let my companion sing", or any request that combines the concept
   of their Claude Code buddy/pet/companion with singing or music.
+license: MIT
+metadata:
+  version: "1.0"
+  category: creative
 ---
 
 # Buddy Sings — Let Your Claude Code Pet Sing

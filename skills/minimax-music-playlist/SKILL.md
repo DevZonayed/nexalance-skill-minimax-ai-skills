@@ -6,6 +6,10 @@ description: >
   playlist", "make a playlist", "歌单", "推荐歌单", "根据我的口味生成", "personalized
   playlist", "music taste", "音乐画像", "scan my music", "扫描我的音乐",
   "playlist based on my taste", "根据喜好生成".
+license: MIT
+metadata:
+  version: "1.0"
+  category: creative
 ---
 
 # MiniMax Music Playlist — Personalized Playlist Generator
@@ -29,7 +33,7 @@ Detect the user's language from their message at the start of the session:
 - Chinese (中文) → Set `LANG=zh` — all interactions in Chinese, generate Chinese lyrics
 - English → Set `LANG=en` — all interactions in English, generate English lyrics
 
-Pass `--lang $LANG` to ALL script invocations throughout the workflow.
+Pass `--lang $LANG` to generation and playback scripts (not scan scripts).
 Respond to the user in their detected language. Use the matching template below.
 
 ---
@@ -43,7 +47,6 @@ works with any combination of sources.
 
 ```bash
 python3 ~/.claude/skills/minimax-music-playlist/scripts/scan_apple_music.py \
-  --lang $LANG \
   --output /tmp/apple_music_data.json
 ```
 
@@ -54,7 +57,6 @@ If Music.app is not running or has no library, the script outputs an empty resul
 
 ```bash
 python3 ~/.claude/skills/minimax-music-playlist/scripts/scan_qq_music.py \
-  --lang $LANG \
   --output /tmp/qq_music_data.json
 ```
 
@@ -65,7 +67,6 @@ assignments, and search history. If QQ Music is not installed, outputs empty res
 
 ```bash
 python3 ~/.claude/skills/minimax-music-playlist/scripts/scan_spotify.py \
-  --lang $LANG \
   --output /tmp/spotify_data.json
 ```
 
@@ -77,7 +78,6 @@ sparse — the script warns about this. Data accumulates as the user listens mor
 
 ```bash
 python3 ~/.claude/skills/minimax-music-playlist/scripts/scan_netease.py \
-  --lang $LANG \
   --output /tmp/netease_data.json
 ```
 

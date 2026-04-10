@@ -28,9 +28,12 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-sys.path.insert(0, os.path.expanduser("~/.claude/skills/shared"))
-from i18n import msg
-from api_base import get_api_base
+
+def get_api_base(api_key):
+    """Auto-detect overseas vs domestic API domain based on key prefix."""
+    if api_key and api_key.startswith("eyJ"):
+        return "https://api.minimaxi.com"
+    return "https://api.minimax.io"
 
 LANG = "zh"
 
@@ -44,8 +47,8 @@ def get_api_key():
             with open(fpath) as f:
                 key = f.read().strip()
     if not key:
-        print(msg("env_not_set", LANG, name="MINIMAX_API_KEY"), file=sys.stderr)
-        print(msg("env_run_export", LANG, name="MINIMAX_API_KEY"), file=sys.stderr)
+        print("❌ MINIMAX_API_KEY is not set.", file=sys.stderr)
+        print("   Run: export MINIMAX_API_KEY=<your-key>  or save to ~/.minimax_api_key", file=sys.stderr)
         sys.exit(1)
     return key
 
@@ -68,7 +71,7 @@ def generate_lyrics(api_key, prompt, mode="write_full_song"):
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
 
-    print(msg("generating_lyrics", LANG), file=sys.stderr)
+    print("⏳ Generating lyrics...", file=sys.stderr)
 
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
@@ -76,11 +79,11 @@ def generate_lyrics(api_key, prompt, mode="write_full_song"):
             return result
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8", errors="replace")
-        print(msg("api_request_failed", LANG, code=e.code), file=sys.stderr)
-        print(msg("api_response", LANG, body=error_body[:500]), file=sys.stderr)
+        print(f"❌ API request failed with HTTP {e.code}", file=sys.stderr)
+        print(f"   Response: {error_body[:500]}", file=sys.stderr)
         sys.exit(1)
     except urllib.error.URLError as e:
-        print(msg("network_error", LANG, reason=e.reason), file=sys.stderr)
+        print(f"❌ Network error: {e.reason}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -189,14 +192,14 @@ def main():
     lyrics = extract_lyrics(result)
 
     if not lyrics:
-        print(msg("no_lyrics_extracted", LANG), file=sys.stderr)
-        print(msg("raw_response_label", LANG), file=sys.stderr)
+        print("❌ Could not extract lyrics from API response.", file=sys.stderr)
+        print("   Raw response:", file=sys.stderr)
         print(json.dumps(result, ensure_ascii=False, indent=2), file=sys.stderr)
         sys.exit(1)
 
     # Display
     print("", file=sys.stderr)
-    print(msg("lyrics_complete", LANG), file=sys.stderr)
+    print("✅ Lyrics generated!", file=sys.stderr)
     print("─" * 40, file=sys.stderr)
     print(format_lyrics_display(lyrics), file=sys.stderr)
     print("─" * 40, file=sys.stderr)
@@ -209,7 +212,7 @@ def main():
         out_path = Path(args.output).expanduser()
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(lyrics, encoding="utf-8")
-        print(msg("lyrics_saved", LANG, path=out_path), file=sys.stderr)
+        print(f"💾 Lyrics saved to: {out_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":
