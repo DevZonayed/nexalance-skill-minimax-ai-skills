@@ -23,25 +23,22 @@ prompt, plan before generating).
 
 ## Prerequisites
 
-- **Credentials**: The scripts auto-read credentials from local files:
-  - API Key: `~/.minimax_api_key`
-  - Group ID: `~/.minimax_group_id`
+- **Credentials**: Set the following environment variables:
+  - `MINIMAX_API_KEY` — your MiniMax API key
+  - `MINIMAX_GROUP_ID` — your MiniMax Group ID
   
-  To check if credentials are configured, only test **file existence** — NEVER
-  read, print, echo, or export the actual values:
+  The scripts also support reading from `~/.minimax_api_key` and `~/.minimax_group_id`
+  files as a fallback.
+
+  To check if credentials are configured:
   ```bash
-  test -f ~/.minimax_api_key && test -f ~/.minimax_group_id && echo "✅ Credentials OK" || echo "❌ Missing credentials"
+  [ -n "$MINIMAX_API_KEY" ] && echo "✅ Credentials OK" || echo "❌ MINIMAX_API_KEY not set"
   ```
-  If missing, trigger the `minimax-account-setup` skill to guide the user through setup.
 
   **⚠️ SECURITY: NEVER do any of the following:**
-  - `cat ~/.minimax_api_key` — exposes the full API key
   - `echo $MINIMAX_API_KEY` — prints the key to terminal
-  - `export MINIMAX_API_KEY=$(cat ...)` — leaks key in process list and terminal history
+  - `cat ~/.minimax_api_key` — exposes the full API key
   - Any command that outputs credential values to stdout/stderr
-  
-  The scripts handle credential loading internally. You do NOT need to set
-  environment variables — just call the scripts directly.
 
 - Python 3.8+ (scripts use only stdlib — no pip install needed).
 - `ffplay` or `mpv` or `afplay` (macOS) for local playback. The script auto-detects.
