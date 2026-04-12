@@ -1,8 +1,8 @@
 ---
 name: minimax-music-playlist
 description: >
-  Generate personalized music playlists by analyzing the user's music taste from local
-  apps (Apple Music, QQ Music, Spotify, NetEase) and generation feedback history. Triggers
+  Generate personalized music playlists by analyzing the user's music taste
+  and generation feedback history. Triggers
   on any request involving playlist generation, music taste profiling, or personalized
   music recommendations. Supports multilingual triggers — match equivalent phrases in
   any language.
@@ -46,32 +46,54 @@ NOT the user's UI language.
 
 ---
 
-## Step 1: Scan Local Music Sources
+## Step 1: Gather Music Listening Data
 
-Discover which music apps are installed and extract listening data. You should write
-your own scanning scripts or commands — the approach below is guidance, not prescription.
+Collect the user's listening data from available sources.
 
-**Known macOS music app data locations:**
+**Supported sources:**
 
-| App | Where to look | Data format |
-|-----|--------------|-------------|
-| Apple Music | `osascript` to query Music.app | AppleScript returns track name, artist, album, genre, play count |
-| QQ Music | `~/Library/Containers/com.tencent.QQMusicMac*/Data/` | SQLite DB + plist files |
-| Spotify | `~/Library/Application Support/Spotify/` | LevelDB cache, URL cache, osascript for current track |
-| NetEase | `~/Library/Containers/com.netease.163music/Data/Documents/storage/` | JSON files (webdata, tracks, FM queue), Cache.db |
+| Source | Method | Data format |
+|--------|--------|-------------|
+| Apple Music | `osascript` to query Music.app (official AppleScript interface) | Track name, artist, album, genre, play count |
+| Spotify | User exports their own data via [Spotify Privacy Settings](https://www.spotify.com/account/privacy/) | JSON files in ZIP (`Streaming_History_Audio_*.json`) |
+| NetEase | Read local JSON data files in `~/Library/Containers/com.netease.163music/Data/Documents/storage/` | JSON files (webdata, tracks, FM queue) |
+| Manual input | User describes their taste directly | Free text |
+
+**Spotify data export flow:**
+Spotify does not store useful data locally. To include Spotify listening history,
+first check if the user already has a Spotify data export:
+
+1. Search for existing exports: `find ~ -maxdepth 4 -name "my_spotify_data.zip" -o -name "Streaming_History_Audio_*.json" 2>/dev/null`
+2. If found, ask the user if they want to use it
+3. If ZIP, unzip and locate `Spotify Extended Streaming History/Streaming_History_Audio_*.json`
+4. If not found, open the Spotify privacy page: `open https://www.spotify.com/account/privacy/`
+5. Tell the user to log in, scroll to "Download your data", and click "Request data"
+6. Skip Spotify for now and continue with other sources — tell the user they can
+   re-run the playlist skill after the data export arrives (usually a few days)
+
+**Spotify data format:**
+The export contains `Streaming_History_Audio_YYYY.json` files (one per year), each
+is a JSON array of listening events. Key fields to extract:
+- `master_metadata_album_artist_name` — artist name
+- `master_metadata_track_name` — track name
+- `master_metadata_album_album_name` — album name
+- `ms_played` — playback duration in milliseconds (use as weight: longer = stronger signal)
+- `ts` — timestamp
+
+Filter out entries where `ms_played < 30000` (less than 30 seconds, likely skipped).
+Do NOT use or store `ip_addr` or other sensitive fields.
 
 **What to extract from each source:**
 - Track names + artist names (primary signal)
 - Playlist names and membership (e.g., a playlist named "Chinese Traditional" tells you genre preference)
-- Play counts if available (weight frequently played tracks higher)
+- Play counts or streaming duration if available (weight frequently played tracks higher)
 - Scene/mood tags if available (NetEase has these)
-- Search history if accessible
 
 **Approach:**
-1. Check which apps are installed (`ls` the data paths)
-2. For each installed app, figure out how to read its data (SQLite, JSON, plist, osascript)
-3. Write a Python script using only stdlib to extract tracks and artists
-4. If no apps found, ask the user to describe their taste manually
+1. Check if Apple Music is available (try `osascript` query)
+2. Ask if the user has a Spotify data export ZIP to provide
+3. Check if NetEase data exists locally (`ls` the data path)
+4. If no sources available, ask the user to describe their taste manually
 
 **Privacy rule:** Never show raw track lists to the user. Only show aggregated stats.
 
@@ -90,12 +112,13 @@ From the scanned data, build a taste profile covering:
 
 **How to infer genre/mood from artist names:**
 Most raw data only has artist + track names without genre tags. To enrich this:
-- Use `mmx text chat --message "<prompt>" --quiet` to batch-query artist genres
-- Keep batches small (10 artists per request) for reliable results
-- Cache results to `<SKILL_DIR>/data/artist_cache.json` to avoid re-querying
-- **Use concurrent requests** (e.g., ThreadPoolExecutor) to speed up lookups
-- **Retry failed batches** — if a batch returns invalid JSON or errors, retry it
-  once before skipping. Network/model glitches are common; a retry usually succeeds
+1. Look up artists in the local mapping table at `<SKILL_DIR>/data/artist_genre_map.json`
+   — this table covers 20,000 popular artists with pre-mapped genres, vocal type, and language
+2. For artists not in the mapping table, query the MusicBrainz API:
+   `https://musicbrainz.org/ws/2/artist/?query=artist:<name>&fmt=json`
+   — extract genre tags from the response; respect rate limit (1 req/sec)
+   — cache results to `<SKILL_DIR>/data/artist_cache.json` to avoid re-querying
+3. If MusicBrainz returns no results, skip the artist
 
 **Profile caching:**
 - Save profile to `<SKILL_DIR>/data/taste_profile.json`
@@ -105,7 +128,7 @@ Most raw data only has artist + track names without genre tags. To enrich this:
 **Show user a summary:**
 ```
 Your Music Profile:
-  Sources: QQ Music 145 | Apple Music 230 | Spotify 20 | NetEase 197
+  Sources: Apple Music 230 | Spotify 140 | NetEase 197
   Genres: J-pop 20% | R&B 15% | Classical 10% | Indie Pop 9%
   Moods: Melancholic 25% | Calm 20% | Romantic 18%
   Vocals: Female 65% | Male 35%
@@ -162,7 +185,10 @@ Embed language naturally into the mmx prompt via vocal description:
 
 **Show the playlist plan before generating.** Display each song with two lines:
 the first line shows genre, mood, and vocal/language tag; the second line shows
-the generation prompt description. Example:
+a short description of the song. **All user-facing text (plan, descriptions, moods,
+labels) must be in the same language as the user's prompt.** Only the actual `--prompt`
+passed to `mmx` should be in English — this is internal and should NOT be shown to
+the user. Example:
 
 ```
 Playlist Plan: Late Night Chill (5 songs)
@@ -180,6 +206,8 @@ Playlist Plan: Late Night Chill (5 songs)
    Tender male voice, acoustic guitar, harmonica, quiet solitude
 
 5. Ambient electronic — calm  Instrumental
+   Soft synth pads, gentle arpeggios, dreamy atmosphere
+```
    Soft synth pads, gentle arpeggios, dreamy atmosphere
 ```
 
